@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# 本地工具配置（Claude Code 等，不入库）
+.claude/
+
+# Python
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# 临时
+/tmp/

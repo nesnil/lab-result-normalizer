@@ -1,0 +1,9 @@
+[project]
+name = "lab-ocr-mcp"
+version = "0.1.0"
+description = "检验报告 OCR 的 Streamable HTTP MCP 服务（为 lab-result-normalizer skill 提供图→文增强）"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

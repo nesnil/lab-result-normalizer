@@ -1,0 +1,14 @@
+services:
+  lab-ocr-mcp:
+    build: .
+    image: lab-ocr-mcp:latest
+    container_name: lab-ocr-mcp
+    ports:
+      - "8000:8000"
+    environment:
+      # 留空则不鉴权（本地测试）；公网部署务必设置一个强随机值，
+      # 并在平台「请求头」填 Authorization=Bearer <同一个值>
+      AUTH_TOKEN: "${AUTH_TOKEN:-}"
+      HOST: "0.0.0.0"
+      PORT: "8000"
+    restart: unless-stopped
