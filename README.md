@@ -1,74 +1,69 @@
-# acits-xskills · 检验结果标准化治理 Skill
+# acits-xskills · 医疗 AI Skill 参赛作品
 
-> 「算丰杯」医疗 AI Skill 开发大赛参赛作品 · AI for Data 数据治理赛道
+> 「算丰杯」医疗 AI Skill 开发大赛参赛作品 · 主力作品 **`ortho-discharge-summary`（骨科特色出院小结生成）**
 
-把不同医院、不同格式、不同单位的**检验报告（血常规 / 生化 / 凝血）**，统一治理为
-**可计算、可比较、可入库**的高质量数据集：项目归一 → LOINC 国际标准编码 → 单位换算 →
-异常 / 危急值判定 → 质控告警。
+本仓库当前以 **`ortho-discharge-summary`** 为唯一在研作品：把住院期间零散、多来源的诊疗资料，治理为一份规范、可供医生审核签发的**骨科特色出院小结**草稿。
 
-临床检验数据普遍存在"同项异名、同义异单位、参考区间不一、格式各异"的问题，导致跨医院、
-跨系统的数据无法直接比较和计算。本作品针对这一痛点，把任意来源的检验报告治理为一份标准化、
-可追溯、可入库的数据集。
-
-> ⚠️ 本作品为**研究与数据治理辅助工具**，输出供数据入库与人工复核使用，**不构成诊疗建议**。
+> ⚠️ 本 Skill 为**文书治理辅助工具**，输出为草稿，须经经治医生审核、修改、签字后方可正式使用，**不构成诊疗建议**。
 
 ---
 
-## 仓库结构
+## 主力作品：`ortho-discharge-summary` — 骨科特色出院小结生成
+
+把住院期间零散、多来源的诊疗资料（入院记录 / 术前诊断与影像 / 手术记录 / 病程 / 医嘱 / 检验检查），
+治理为一份**规范、完整、可直接供医生审核签发**的骨科出院小结。区别于通用内科小结：准确表达
+**术式（含入路、内固定物）、骨折/疾病分型、患肢功能与负重康复时序、VTE 预防、内固定随访**。
+
+定位为**文书治理辅助工具**，不是自动写作机：资料没有的标"待补充"，绝不编造；输出为**草稿**，
+须经经治医生审核、修改、签字后方可正式使用。
+
+### 目录结构
 
 ```
-acits-xskills/
-├── lab-result-normalizer/    # 参赛 Skill（一个文件夹即一个 skill，可整目录上传 xskills 平台）
-│   ├── SKILL.md              # 主入口：frontmatter + 5 阶段流水线定义
-│   └── references/           # 规则知识库（治理的事实来源，绝不臆造）
-│       ├── synonyms.md           # 同义名/别名/英文缩写 → 标准项目名
-│       ├── loinc_mapping.md      # 标准项目名 → LOINC Code + Long Common Name
-│       ├── unit_conversion.md    # 标准单位、非标单位换算系数
-│       ├── reference_ranges.md   # 参考区间（性别/年龄分层）
-│       ├── abnormal_flag_rules.md# 异常标记、危急值阈值、逻辑冲突校验 C1–C10
-│       └── output_schema.md      # 输出 JSON Schema + 人读 Markdown 表格规范
-│
-└── lab-ocr-mcp/              # 自建 OCR MCP 服务（为 skill 提供"图 → 文"输入增强）
-    ├── README.md             # 部署 + 平台注册（Streamable HTTP）说明
-    ├── src/core/             # 纯 OCR 逻辑（RapidOCR 封装 + 表格几何还原）
-    ├── src/server/           # FastMCP streamable-http 壳 + 可选 Bearer 鉴权
-    └── tests/                # 合成化验单图端到端验证
+ortho-discharge-summary/       # 一个文件夹即一个 skill，可整目录打 zip 上传 xskills 平台
+├── SKILL.md                   # 主入口：frontmatter + 5 阶段生成流水线
+└── references/                # 通用骨架 + 可插拔骨科医生知识库
+    ├── extraction_rules.md     # 从住院资料抽取要素的规则 + 逻辑校验
+    ├── ortho_knowledge.md      # 骨科术式规范名/分型/内固定物/入路（依公开权威文献核验）
+    ├── discharge_template.md   # 骨科出院小结标准章节模板与必填项
+    ├── rehab_vte_protocols.md  # 负重/康复计划、VTE 预防、内固定随访（依公开指南核验）
+    └── output_schema.md        # 人读小结 + 质控清单 + 结构化 JSON 规范
 ```
 
-## 核心:5 阶段治理流水线
+### 核心:5 阶段生成流水线
 
-定义见 [`lab-result-normalizer/SKILL.md`](lab-result-normalizer/SKILL.md)。每阶段产物喂下一阶段，过程对用户可见：
+定义见 [`ortho-discharge-summary/SKILL.md`](ortho-discharge-summary/SKILL.md)：
 
-1. **解析拆分** —— 把报告拆成逐条检验项，抽 `raw_name / raw_value / raw_unit / raw_ref_range` 四元组，忠实保留原文。
-2. **项目归一** —— 查 `synonyms.md`，`raw_name → std_name`，记 `match_type`。
-3. **LOINC 映射** —— 分层漏斗：高频精表优先 → 表外走预留的 `loinc-mcp` 接口。**绝不臆造 LOINC 码**。
-4. **单位与数值标准化** —— 查 `unit_conversion.md` 换算到标准单位，记换算系数。
-5. **异常判定与质控** —— 判 `flag`(N/H/L) 与危急值，跑逻辑冲突校验（C1–C10），全部异常进 warnings。
+1. **资料解析与要素归集** —— 查 `extraction_rules.md` 抽取要素，每项记 `source`，缺失记 `null`，忠实归集不补全。
+2. **骨科要素规范化** —— 查 `ortho_knowledge.md` 规范术式名 / 分型（AO/OTA、Gustilo-Anderson、Garden、Schatzker、Pauwels、Danis-Weber、Denis/AO Spine 等 20+ 分型）/ 内固定物 / 入路，保留 `raw_*` 与 `std_*` 双轨。
+3. **出院小结章节组装** —— 查 `discharge_template.md`，按标准章节填充，缺失字段填【待补充】。
+4. **骨科专项内容生成** —— 查 `rehab_vte_protocols.md` 生成患肢功能、分阶段负重康复、VTE 三级预防、内固定随访、专科注意事项。
+5. **质控校验与输出** —— 完整性 + 逻辑一致性校验（日期/侧别/诊断-术式匹配等），输出小结草稿 + 质控清单。
 
-**输出**：先人读 Markdown 摘要表（高亮 ↑↓ 与危急值），再完整结构化 JSON（可入库）。
+### 设计亮点
 
-## 设计原则
+- **通用骨架 + 可插拔骨科医生知识库** —— 主流程通用，专科深度由 `ortho_knowledge.md` 与 `rehab_vte_protocols.md` 承载，**医生补充知识即可加深特色，无需改主流程**（references 索引标注了主要贡献者：技术 / 骨科医生）。
+- **知识库依公开权威文献/指南核验** —— 20+ 骨折分型（含原始文献引用）、10 类术式分阶段康复方案、VTE 三级预防、功能评分量表，均标注来源；具体用药剂量/本院排期等个体化项标"需医生确认"，绝不臆造。
+- **强质控、不臆造、需医生签发** —— 缺失项与逻辑冲突统一进质控清单，文末固定附免责声明。
 
-- **规则表优先，绝不臆造** —— LOINC 码、同义词、换算系数、参考区间、判定阈值一律查 `references/`，不凭模型记忆编造。这是数据治理作品的可信底线。
-- **忠实可追溯** —— 始终保留 `raw_*` 原文，便于人工复核。
-- **质控可见，不静默丢弃** —— 单位缺失、区间冲突、逻辑冲突、危急值全部进 warnings。
-- **非诊断** —— 输出面向数据治理与人工复核，不给诊疗结论。
+### 设计原则
 
-## 输入端策略
+- **规则/知识库优先，绝不臆造** —— 术语、分型、模板、康复/VTE 方案一律查 `references/`，不凭模型记忆编造。
+- **忠实可追溯** —— 始终保留原文 `raw_*` 与来源 `source`，便于人工复核。
+- **质控可见，不静默丢弃** —— 缺失必填项、逻辑冲突、需医生确认项全部进质控清单。
+- **非诊断、需签发** —— 输出为草稿，面向人工复核与医生签发，不给诊疗结论。
 
-- **文本为主线、模型无关** —— 核心治理链路只依赖文本，用平台默认模型即可稳定跑通。
-- **图片为可选增强** —— 优先调自建 OCR MCP（[`lab-ocr-mcp`](lab-ocr-mcp/)）把化验单图片还原成 Markdown 表格；不可用时回退多模态模型读图。**有 OCR 锦上添花，无 OCR 主线照跑**。
+---
 
-## 覆盖范围（v1，约 50–60 项）
+## 其他历史作品（不再开发，仅存档）
 
-| 报告类型 | 覆盖项目 |
-|---|---|
-| 血常规 CBC | WBC、RBC、HGB、HCT、PLT、MCV、MCH、MCHC、RDW-CV、各类白细胞 %/# |
-| 生化 Chemistry | ALT、AST、ALP、GGT、TBIL、DBIL、TP、ALB、GLU、UREA、CREA、UA、TC、TG、HDL-C、LDL-C、K、Na、Cl、Ca、CK、CK-MB、LDH |
-| 凝血 Coagulation | PT、PT-INR、APTT、TT、FIB、D-Dimer |
+以下作品为本仓库早期内容，**当前已停止开发**，仅保留在仓库与 git 历史中供参考：
 
-未覆盖项目按"未匹配"处理并记录到 warnings，不臆造编码。
+| 作品 | 一句话 | 状态 |
+|---|---|---|
+| [`lab-result-normalizer`](lab-result-normalizer/) | 把多源异构检验报告治理为标准化数据集（LOINC + 标准单位 + 异常分级 + 质控） | 历史存档，不再开发 |
+| [`lab-ocr-mcp`](lab-ocr-mcp/) | 自建 OCR MCP 服务（RapidOCR + Streamable HTTP + Docker） | 历史存档，不再开发 |
 
 ## License
 
-[MIT](LICENSE)。OCR 引擎 [RapidOCR](https://github.com/RapidAI/RapidOCR) 及其依赖遵循各自的开源许可。
+[MIT](LICENSE)。

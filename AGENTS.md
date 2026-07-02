@@ -1,6 +1,14 @@
 # AGENTS.md — acits-xskills
 
-本仓库是"算丰杯"医疗 AI Skill 开发大赛的参赛作品工作区。当前唯一作品为 **`lab-result-normalizer`**（检验结果标准化治理 Skill）。本文件是面向 AI agent 的项目说明，记录已定决策、架构、约定与待办，方便任何新会话冷启动接手。
+本仓库是"算丰杯"医疗 AI Skill 开发大赛的参赛作品工作区。
+
+> ⚠️ **当前工作重心（2026-07-02 起）**：**唯一在研作品为 `ortho-discharge-summary`（骨科特色出院小结生成 Skill）**。其余作品 `lab-result-normalizer`、`lab-ocr-mcp` **已停止开发**，**文件保留在仓库/ git 历史中不删除**，但**不再投入**——除非用户明确要求，不要去读/改/优化它们。
+
+- **`ortho-discharge-summary`**（骨科特色出院小结生成 Skill）—— 辅助诊疗/文书生成方向，**当前唯一主力作品**。
+- ~~`lab-result-normalizer`（检验结果标准化治理 Skill）~~ —— AI for Data 数据治理赛道，**历史作品，已停止开发**（存档）。
+- ~~`lab-ocr-mcp`（自建 OCR MCP 服务）~~ —— 为 lab-result-normalizer 提供"图→文"输入增强，**历史作品，已停止开发**（存档）。
+
+本文件是面向 AI agent 的项目说明，记录已定决策、架构、约定与待办，方便任何新会话冷启动接手。
 
 ## 1. 比赛背景与约束
 
@@ -13,21 +21,22 @@
 
 ## 2. 作品定位（差异化话术，PPT 可直接用）
 
-把不同医院、不同格式、不同单位的检验报告（血常规 / 生化 / 凝血），统一治理为**可计算、可比较、可入库**的高质量数据集：项目归一、LOINC 标准化、单位换算、异常/危急值判定、质控告警。
+### `ortho-discharge-summary`（骨科特色出院小结生成）— 当前唯一主力
+把住院期间零散、多来源的诊疗资料，治理为一份**规范、完整、可直接供医生审核签发**的骨科出院小结。区别于通用内科小结：准确表达术式（含入路、内固定物）、骨折/疾病分型、患肢功能与负重康复时序、VTE 预防、内固定随访。
 
-与平台已有 `medical_icd_extractor` **不撞题**：后者是"图片→12 类医学实体→反查 ICD-10/9-CM-3/ICD-O 诊断/手术编码"，**丢失数值/单位/参考区间**等可计算信息；本作品恰好补这块空白，输出 LOINC 编码 + 标准单位 + 归一数值 + 异常分级，使检验数据可跨院比较、可入库分析。
-
-借鉴 `medical_icd_extractor` 的工程化输出范式（结构化 JSON + confidence + match_level + warnings 质控告警），保持"同平台高质量产出"观感，但内容完全不同。
+差异化卖点：①**「通用骨架 + 可插拔骨科医生知识库」**——专科深度可由医生增量补充，体现"医生 × 技术"协作；②**强质控、不臆造、需医生签发**，定位为"文书治理辅助"而非"自动写作机"，与平台 MDT/核保类作品错位。
 
 ## 3. 目录结构
 
-本项目总目录下含**一个 Skill 目录**（`lab-result-normalizer/`）和**一个自建 MCP 目录**（`lab-ocr-mcp/`）：
+本项目总目录下含 `ortho-discharge-summary/`（**当前唯一在研**）以及两个**已停止开发、仅存档**的目录（`lab-result-normalizer/`、`lab-ocr-mcp/`，保留不删）。完整目录树如下（存档部分保留供参考）：
 
 ```
 acits-xskills/                 # 项目总目录
 ├── AGENTS.md                 # 本文件：项目说明（唯一事实来源）
 ├── CLAUDE.md                 # 仅 @AGENTS.md，供 Claude Code 读取
-├── lab-result-normalizer/    # 参赛 Skill（= 一个文件夹，可整目录打 zip 上传平台）
+├── README.md                 # 面向人/GitHub 的仓库说明
+├── LICENSE                   # MIT
+├── lab-result-normalizer/    # 参赛 Skill ①（= 一个文件夹，可整目录打 zip 上传平台）
 │   ├── SKILL.md              # 主入口：frontmatter(name+description) + 5 阶段流水线
 │   └── references/           # 规则知识库（平台规范用复数 references/）
 │       ├── synonyms.md           # 同义名/别名/英文缩写 → 标准项目名
@@ -36,7 +45,15 @@ acits-xskills/                 # 项目总目录
 │       ├── reference_ranges.md   # 参考区间（性别/年龄分层）
 │       ├── abnormal_flag_rules.md# 异常标记、危急值阈值、逻辑冲突校验 C1–C10
 │       └── output_schema.md      # 输出 JSON Schema + 人读 Markdown 表格规范
-└── lab-ocr-mcp/              # 自建 OCR MCP 服务（为 skill 提供"图→文"输入增强）
+├── ortho-discharge-summary/  # 参赛 Skill ②（骨科特色出院小结生成）
+│   ├── SKILL.md              # 主入口：frontmatter + 5 阶段生成流水线
+│   └── references/           # 「通用骨架 + 可插拔骨科医生知识库」
+│       ├── extraction_rules.md     # 从住院资料抽取出院小结要素的规则 + 逻辑校验
+│       ├── ortho_knowledge.md      # 骨科专科知识：术式规范名/分型/内固定物/入路（医生为主）
+│       ├── discharge_template.md   # 骨科出院小结标准章节模板与必填项
+│       ├── rehab_vte_protocols.md  # 负重/康复计划、VTE 预防、内固定随访（医生为主）
+│       └── output_schema.md        # 输出格式：人读小结 + 质控清单 + 结构化 JSON
+└── lab-ocr-mcp/              # 自建 OCR MCP 服务（为 skill ① 提供"图→文"输入增强）
     ├── README.md             # 部署 + 平台注册（streamableHTTP）说明
     ├── Dockerfile            # python:3.11-slim（锁版本，绕开本地 3.14 onnxruntime 无 wheel）
     ├── docker-compose.yml
@@ -51,7 +68,9 @@ acits-xskills/                 # 项目总目录
 
 ## 4. 架构（已定，不要随意改动）
 
-**5 阶段流水线**（SKILL.md 为权威定义；每阶段产物喂下一阶段，过程对用户可见）：
+### 4A. `lab-result-normalizer` —— 5 阶段流水线
+
+（SKILL.md 为权威定义；每阶段产物喂下一阶段，过程对用户可见）：
 
 1. **解析拆分** — 把报告拆成逐条检验项，抽四元组 `raw_name / raw_value / raw_unit / raw_ref_range`，保留来源信息。**本阶段只忠实拆分，不做任何标准化**。
 2. **项目归一** — 查 `synonyms.md`，`raw_name → std_name`，记 `match_type`（exact/synonym/unmatched）。unmatched 进 warnings 并跳过后续。
@@ -71,7 +90,23 @@ acits-xskills/                 # 项目总目录
 - **生化**：ALT/AST/ALP/GGT/TBIL/DBIL/TP/ALB/GLU/UREA/CREA/UA/TC/TG/HDL-C/LDL-C/K/Na/Cl/Ca/CK/CK-MB/LDH
 - **凝血**：PT/PT-INR/APTT/TT/FIB/D-Dimer
 
+### 4B. `ortho-discharge-summary` —— 5 阶段生成流水线
+
+把住院期间零散的诊疗资料（入院记录/术前诊断与影像/手术记录/病程/医嘱/检验检查）治理为一份**规范、完整、可直接供医生审核签发**的骨科出院小结草稿。SKILL.md 为权威定义；每阶段产物喂下一阶段，过程对用户可见：
+
+1. **资料解析与要素归集** — 查 `extraction_rules.md`，从各类输入抽出院小结要素（基本信息/入出院诊断/手术信息/治疗经过/出院情况），每要素记 `source`，缺失记 `null`。**只忠实归集，不规范化、不补全**。
+2. **骨科要素规范化** — 查 `ortho_knowledge.md`，规范手术名称（部位+术式+入路+内固定）、分型（AO/OTA、Gustilo-Anderson、Garden、Schatzker、Frankel 等以知识库收录为准）、内固定物/假体、手术入路；保留 `raw_*`，结果记 `std_*`，未收录的留原文 + 质控提示。
+3. **出院小结章节组装** — 查 `discharge_template.md`，按标准章节（入院/出院诊断、入院情况、诊疗经过、手术情况、出院情况、出院医嘱）填充；缺失字段填【待补充：xxx】，不编造。
+4. **骨科专项内容生成** — 查 `rehab_vte_protocols.md`，按术式/诊断生成患肢功能、分阶段负重与康复计划、VTE 预防、内固定/假体随访、专科出院注意事项；无依据不臆造，标"建议由经治医生补充"。
+5. **质控校验与输出** — 对照模板必填项列缺失项；跑逻辑一致性校验（出院早于入院、手术日期不在住院期间、诊断与术式部位不匹配、患肢侧别矛盾、住院天数与起止不符等）。
+
+**输出**：先人读出院小结草稿（核心产物），后质控清单（缺失/冲突/术语未规范/需医生补充，分级列出），可选结构化要素 JSON。文末固定附**免责声明：AI 辅助生成草稿，须经经治医生审核、修改、签字后方可正式使用**。
+
+**设计要点（PPT 亮点）**：「**通用骨科骨架 + 可插拔专科知识库**」——主流程通用，骨科深度由 `ortho_knowledge.md` 与 `rehab_vte_protocols.md` 承载，**医生补充知识即可加深特色，无需改主流程**。references 索引里标注了主要贡献者（技术 / 骨科医生），体现"医生 × 技术"协作的产品化思路。
+
 ## 5. 核心原则（改任何内容都必须守住）
+
+> 两个 skill 共享同一套治理底线；`ortho-discharge-summary` 额外强调"输出为草稿、需医生签发"。
 
 - **规则表优先，绝不臆造**：所有 LOINC 码、同义词、换算系数、参考区间、判定阈值一律查 `references/`，不得凭模型记忆编造。这是"数据治理"作品的可信底线，也是评分点。
 - **忠实可追溯**：始终保留 `raw_*` 原文，便于人工复核。
@@ -79,18 +114,22 @@ acits-xskills/                 # 项目总目录
 - **置信度与匹配级别**：不确定的映射/换算标低置信度 + P0/P1/P2/P3 级别。
 - **非诊断**：输出面向数据治理与人工复核，不给诊疗结论。SKILL.md 必须保留免责声明。
 
-## 6. 待办（接手优先级从高到低）
+## 6. 待办（当前唯一在研 = ortho-discharge-summary）
 
-1. **⚠ 核验 LOINC 码（阻塞项，必须用户做）**：`references/loinc_mapping.md` 的 ~48 个 LOINC 码当前全标"待核验"，依据是公开知识。**需用户用 loinc.org / RELMA 官方库逐项核验**后，把"状态"列改为"已核验"。我（agent）无法登录 loinc.org 核验，只能提供候选值 + 公开依据供用户比对。
-2. **准备 ≥5 个验证案例**：混合策略——少量真实脱敏样例打底，其余 AI 生成仿真检验报告补足。**仿真样例必须标注"仿真"**。覆盖：单源单类型、多源融合、含异常/危急值、含单位非标需换算、含表外未匹配项各至少一例。
-3. **画 PPT 架构图**：重点画 LOINC 分层检索漏斗（精表 → 结构化过滤 → BM25+向量混合 → rerank → 置信闸门 → loinc-mcp），作为"可扩展性/产品化"亮点——**本期不实现 loinc-mcp，只在架构上体现并预留接口**。比赛主体用高频精表保质量保可信。
-4. **平台落地演示**：整 `lab-result-normalizer/` 目录打 zip 上传平台跑通，截图入 PPT。
-5. **自建 OCR MCP** —— 代码已完成并端到端验证（`lab-ocr-mcp/`，RapidOCR + streamableHTTP + Docker）。**剩余工作：公网部署**（云服务器/容器 + TLS），拿到 `https://<域名>/mcp` 后在平台 MCP 管理页注册（协议选 streamableHTTP，可选 Bearer）。部署步骤见 `lab-ocr-mcp/README.md` 第 3 节。
+### `ortho-discharge-summary`（当前唯一主力）
+1. **✅ 知识库已用公开权威文献/指南充实**：`references/ortho_knowledge.md`（AO/OTA、Gustilo-Anderson、Garden、Pauwels、Schatzker、Danis-Weber、Lauge-Hansen、Denis/AO Spine/TLICS、Letournel、Tile/Young-Burgess、Salter-Harris、Neer、Sanders、Frykman、Gartland、Mason、Rüedi-Allgöwer 等 20+ 分型已按原始文献填充并标注来源+临床意义）与 `rehab_vte_protocols.md`（10 类术式分阶段康复方案、VTE 三级预防、随访要点、功能评分量表已填充）。**具体用药剂量、精确疗程天数、本院随访排期、内固定取出具体时间**仍标"【需医生确认】"，未臆造。
+2. **✅ frontmatter 已符合官方 Agent Skills 规范**：`name`+`description`（含触发关键词）+`license`+`metadata`（version/author/track/pipeline 均字符串）；已按 agentskills.io 规范核验（详见 [[xskills-platform-structure]] 相关约束）。
+3. **准备 ≥5 个验证案例**（进行中，`cases/` 目录）：覆盖创伤骨折内固定、关节置换、脊柱、运动医学等典型场景，含一例资料缺失触发"待补充"、一例逻辑冲突（如侧别矛盾/日期不符）触发质控。**真实脱敏 + 仿真混合，仿真须标注**。提交要求 ≥5 个真实案例的输入输出比对报告。
+4. **平台落地演示**：整 `ortho-discharge-summary/` 目录打 zip（`.zip` 推荐）上传平台「Skill 管理→上传技能」跑通，截图入 PPT。
+5. **PPT**：突出"通用骨架 + 可插拔骨科医生知识库""输出为草稿需医生签发"两大产品化卖点。
+
+### 已停止开发（存档，不再投入）
+- `lab-result-normalizer`、`lab-ocr-mcp`：文件保留在仓库/git 历史，但**不再开发**。相关历史待办（LOINC 核验、OCR 公网部署等）已冻结，除非用户明确重启，不要在其上投入 token。
 
 ## 7. 编辑约定
 
-- 改 `SKILL.md` 或任何 `references/*.md` 时，保持现有中文风格、表格格式与字段命名一致。
-- `loinc_mapping.md` 改码值后务必同步更新"状态"列；新增项目须同时在 `synonyms.md`/`unit_conversion.md`/`reference_ranges.md` 配齐，避免阶段间断链。
-- 新增逻辑冲突校验沿用 `abnormal_flag_rules.md` 的 C1–C10 编号体例。
+- 改任何 `SKILL.md` 或 `references/*.md` 时，保持现有中文风格、表格格式与字段命名一致；两个 skill 各自独立，不要把检验治理逻辑混进出院小结 skill（反之亦然）。
+- **`lab-result-normalizer`**：`loinc_mapping.md` 改码值后务必同步更新"状态"列；新增项目须同时在 `synonyms.md`/`unit_conversion.md`/`reference_ranges.md` 配齐，避免阶段间断链；新增逻辑冲突校验沿用 `abnormal_flag_rules.md` 的 C1–C10 编号体例。
+- **`ortho-discharge-summary`**：专科深度全部沉淀进 `ortho_knowledge.md` / `rehab_vte_protocols.md`，**主流程（SKILL.md）保持通用、不写死具体术式**，守住"通用骨架 + 可插拔知识库"边界；新增分型/术式术语在 `ortho_knowledge.md` 收录，并保持 `raw_*`/`std_*` 双轨；任何无依据内容标"待补充/建议医生补充"，文末免责声明不可删。
 - 改 `lab-ocr-mcp/` 时守住其单一职责：**只做"图→文"，绝不在 MCP 内做任何医学标准化**（标准化全在 skill 阶段 1–5）。OCR 逻辑写在 `src/core/`（与传输无关、可单测），传输/鉴权写在 `src/server/`，分层不要混。验证用 `docker build` 跑 `tests/test_smoke.py`（本地 Python 3.14 装不上 onnxruntime，统一走 Docker）。
-- 本仓库**当前不是 git 仓库**；如需版本管理先 `git init`。
+- **版本管理**：本仓库已是 git 仓库，远端 `origin` = https://github.com/nesnil/lab-result-normalizer.git （PUBLIC，MIT）。用 `gh` 操作。提交/推送仅在用户明确要求时进行。

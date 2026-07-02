@@ -1,6 +1,14 @@
 ---
 name: lab-result-normalizer
 description: 检验结果标准化治理工具。当用户提供一份或多份检验报告（血常规 / 生化 / 凝血），或粘贴检验单文本、上传检验报告图片，并希望对其进行结构化、标准化、多源融合或质控时使用。本 skill 将不同医院、不同格式、不同单位的检验报告，统一治理为可计算、可比较、可入库的高质量数据集：识别检验项目并归一同义名称、映射到国际标准 LOINC 编码、换算到标准单位、判定异常与危急值、生成质控告警。触发关键词：检验报告、化验单、检验结果、血常规、生化、凝血、LOINC、单位标准化、检验数据治理、多源融合、参考区间、危急值、异常值、化验数据结构化。
+license: MIT
+compatibility: "纯文本主线模型无关（默认 DeepSeek-V4-Pro）；图片输入增强可选调用自建 lab-ocr-mcp（需联网 streamableHTTP），不可用时回退多模态模型读图"
+metadata:
+  author: "acits-xskills 参赛作品（AI for Data 数据治理赛道主力作品）"
+  version: "1.0.0"
+  track: "AI for Data 数据治理"
+  pipeline: "5 阶段：解析拆分 → 项目归一 → LOINC 映射 → 单位数值标准化 → 异常判定与质控"
+  optional_mcp: "自建 lab-ocr-mcp（图→文输入增强）；预留 loinc-mcp 分层检索接口"
 ---
 
 # Lab Result Normalizer — 检验结果标准化治理
